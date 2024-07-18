@@ -1,25 +1,24 @@
 import whisper
-from quart import Quart, request, jsonify
-import aiofiles
+from flask import Flask, request, jsonify
 import os
+import tempfile
 
-app = Quart(__name__)
+app = Flask(__name__)
 
 # Cargar el modelo "tiny"
 model = whisper.load_model("small")
 
 @app.route('/transcribe', methods=['POST'])
-async def transcribe():
+def transcribe():
     # Obtener el archivo enviado en la solicitud
-    files = await request.files
-    audio_file = files.get('audio')
+    audio_file = request.files.get('audio')
     if not audio_file:
         return jsonify({"error": "No audio file provided"}), 400
 
     # Guardar el archivo temporalmente
-    audio_path = os.path.join("/tmp", audio_file.filename)
-    async with aiofiles.open(audio_path, 'wb') as f:
-        await f.write(audio_file.read())
+    with tempfile.NamedTemporaryFile(delete=False) as tmp:
+        audio_path = tmp.name
+        audio_file.save(audio_path)
 
     # Transcribir el audio
     result = model.transcribe(audio_path)
@@ -32,4 +31,4 @@ async def transcribe():
     return jsonify({"transcription": transcription_text})
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run()
